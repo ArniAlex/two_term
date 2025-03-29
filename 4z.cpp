@@ -10,8 +10,8 @@ class matrix {
     size_t columns;
 
 public:
-    matrix( size_t r, size_t c): rows(r), columns(c) {
-        m = new double*[rows]; //исключения
+    matrix(size_t r, size_t c) : rows(r), columns(c) {
+        m = new double* [rows]; //исключения
         for (size_t i = 0; i < rows; ++i) {
             m[i] = new double[columns];
             for (size_t j = 0; j < columns; ++j) {
@@ -20,7 +20,7 @@ public:
         }
     };
 
-    matrix(const matrix& other): rows(other.rows), columns(other.columns) {
+    matrix(const matrix& other) : rows(other.rows), columns(other.columns) {
         m = new double* [rows];
         for (size_t i = 0; i < rows; ++i) {
             m[i] = new double[columns];
@@ -32,7 +32,7 @@ public:
 
     matrix& operator=(const matrix& other) {
         if (this == &other) {
-            return *this; 
+            return *this;
         }
 
         for (size_t i = 0; i < rows; ++i) {
@@ -42,8 +42,8 @@ public:
 
         rows = other.rows;
         columns = other.columns;
-        
-        m = new double* [rows]; 
+
+        m = new double* [rows];
         for (size_t i = 0; i < rows; ++i) {
             m[i] = new double[columns];
             for (size_t j = 0; j < columns; ++j) {
@@ -54,74 +54,74 @@ public:
         return *this;
     };
 
-    matrix operator+(const matrix& second) const { 
+    matrix operator+(const matrix& second) const {
         if (!(rows == second.rows && columns == second.columns)) {
             throw std::invalid_argument("Matrices must have the same dimensions for addition.");
         }
-        matrix result(rows, columns); 
+        matrix result(rows, columns);
         for (size_t i = 0; i < rows; ++i) {
             for (size_t j = 0; j < columns; ++j) {
-                result.m[i][j] = m[i][j] + second.m[i][j];  
+                result.m[i][j] = m[i][j] + second.m[i][j];
             }
         }
         return result;
     };
 
-    matrix operator*(double num) const { 
-        matrix result(rows, columns); 
+    matrix operator*(double num) const {
+        matrix result(rows, columns);
         for (size_t i = 0; i < rows; ++i) {
             for (size_t j = 0; j < columns; ++j) {
-                result.m[i][j] = m[i][j] * num;  
+                result.m[i][j] = m[i][j] * num;
             }
         }
         return result;
     };
 
     friend matrix operator*(double num, const matrix& matr) {
-        matrix result(matr.rows, matr.columns);    
+        matrix result(matr.rows, matr.columns);
         for (size_t i = 0; i < matr.rows; ++i) {
             for (size_t j = 0; j < matr.columns; ++j) {
-                result.m[i][j] = matr.m[i][j] * num;  
+                result.m[i][j] = matr.m[i][j] * num;
             }
         }
         return result;
     };
 
     matrix operator*(const matrix& second) const {
-        if (columns != second.rows) { 
+        if (columns != second.rows) {
             throw std::invalid_argument("Incompatible matrix dimensions for multiplication.");
         }
 
         matrix result(rows, second.columns);
         for (size_t i = 0; i < rows; ++i) {
-            for (size_t j = 0; j < second.colsums; ++j) {
+            for (size_t j = 0; j < second.columns; ++j) {
                 for (size_t k = 0; k < columns; ++k) {
-                    result.m[i][j] += m[i][k] * second.m[k][j]; 
+                    result.m[i][j] += m[i][k] * second.m[k][j];
                 }
             }
         }
 
         return result;
-    }; 
+    };
 
     matrix operator-(const matrix& second) const {
-        if !(rows == second.rows && columns == second.columns) {
+        if (!(rows == second.rows && columns == second.columns)) {
             throw std::invalid_argument("Matrices must have the same dimensions for subtraction.");
         }
         matrix result(rows, columns);
         for (size_t i = 0; i < rows; ++i) {
             for (size_t j = 0; j < columns; ++j) {
-                result.m[i][j] = m[i][j] - second.m[i][j];  
+                result.m[i][j] = m[i][j] - second.m[i][j];
             }
         }
         return result;
-    }; 
+    };
 
     matrix transposed() const {
-        matrix result(columns, rows); 
+        matrix result(columns, rows);
         for (size_t i = 0; i < rows; ++i) {
             for (size_t j = 0; j < columns; ++j) {
-                result.m[j][i] = m[i][j]; 
+                result.m[j][i] = m[i][j];
             }
         }
         return result;
@@ -146,8 +146,8 @@ public:
         }
 
         return det;
-    }
-    
+    };
+
 
     matrix inverse_matrix() const {
         if (rows != columns) {
@@ -169,25 +169,25 @@ public:
 
         matrix inverse = adjugate.transposed() * (1.0 / det);
         return inverse;
-    }
+    };
 
-    
+
     //для [][]
-    class overload { 
+    class overload {
         double* str;
         size_t col;
-
+    public:
         overload(double* r, size_t c) : str(r), col(c) {};
 
         double& operator[](size_t cols) {
             if (cols < 0 || cols >= col) {
                 throw std::out_of_range("Index out of range");
             }
-            return str[cols]; 
+            return str[cols];
         }
-        
-        overload(const overload& other) = default; 
-        overload& operator=(const overload& other) = default; 
+
+        overload(const overload& other) = default;
+        overload& operator=(const overload& other) = default;
         ~overload() = default;
     };
 
@@ -195,8 +195,11 @@ public:
         if (row < 0 || row >= rows) {
             throw std::out_of_range("Index out of range");
         }
-        return overload(m[row], cols); //указатель на строку
-    }
+        return overload(m[row], columns); //указатель на строку
+    };
+
+    size_t getRows() const { return rows; };
+    size_t getColumns() const { return columns; };
 
     ~matrix() {
         for (size_t i = 0; i < rows; ++i) {
@@ -204,12 +207,12 @@ public:
         }
         delete[] m;
     };
-    
+
 private:
-        //метод Гаусса (приведение к верхнетреугольному виду)
+    //метод Гаусса (приведение к верхнетреугольному виду)
     std::pair<double, size_t> gaussianElimination(matrix& a) const {
-        size_t n = a.rows; 
-        double det = 1.0; 
+        size_t n = a.rows;
+        double det = 1.0;
         size_t sign = 1; //меняется, когда меняем строки местами
 
         for (size_t i = 0; i < n; ++i) {
@@ -243,13 +246,13 @@ private:
         return std::make_pair(det, sign);
     };
 
-    void getSubmatrix(size_t rowToRemove, size_t colToRemove, matrix& submatrix) const {
+    void getSubmatrix(size_t row_rem, size_t col_rem, matrix& submatrix) const {
         size_t subRow = 0;
         for (size_t i = 0; i < rows; ++i) {
-            if (i == rowToRemove) continue;
+            if (i == row_rem) continue;
             size_t subCol = 0;
             for (size_t j = 0; j < columns; ++j) {
-                if (j == colToRemove) continue;
+                if (j == col_rem) continue;
                 submatrix.m[subRow][subCol] = m[i][j];
                 ++subCol;
             }
@@ -264,29 +267,29 @@ private:
 
 int main() {
     try {
-        matrix A(2, 2);
-        A[0][0] = 1.0;
-        A[0][1] = 2.0;
-        A[1][0] = 3.0;
-        A[1][1] = 4.0;
+        matrix A(3, 3);
+        A[0][0] = 1.0; A[0][1] = 2.0; A[0][2] = 8.0;
+        A[1][0] = 3.0; A[1][1] = 4.0; A[0][2] = 67.0;
+        A[2][0] = 8.0; A[2][1] = 12.0; A[2][2] = 3.0;
+       
 
-        matrix B(2, 2);
-        B[0][0] = 5.0;
-        B[0][1] = 6.0;
-        B[1][0] = 7.0;
-        B[1][1] = 8.0;
+        matrix B(3, 3);
+        B[0][0] = 5.0; B[0][1] = 6.0; B[0][2] = 4.0;
+        B[1][0] = 7.0; B[1][1] = 8.0; B[1][2] = 12.0;
+        B[2][0] = 74.0; B[2][1] = 7.0; B[2][2] = 5.0;
+        
 
         std::cout << "Matrix A:\n";
-        for (size_t i = 0; i < A.rows; ++i) {
-            for (size_t j = 0; j < A.columns; ++j) {
+        for (size_t i = 0; i < A.getRows(); ++i) {
+            for (size_t j = 0; j < A.getColumns(); ++j) {
                 std::cout << A[i][j] << " ";
             }
             std::cout << std::endl;
         }
 
         std::cout << "Matrix B:\n";
-        for (size_t i = 0; i < B.rows; ++i) {
-            for (size_t j = 0; j < B.columns; ++j) {
+        for (size_t i = 0; i < B.getRows(); ++i) {
+            for (size_t j = 0; j < B.getColumns(); ++j) {
                 std::cout << B[i][j] << " ";
             }
             std::cout << std::endl;
@@ -295,8 +298,8 @@ int main() {
         //операции
         matrix C = A + B;
         std::cout << "A + B:\n";
-        for (size_t i = 0; i < C.rows; ++i) {
-            for (size_t j = 0; j < C.columns; ++j) {
+        for (size_t i = 0; i < C.getRows(); ++i) {
+            for (size_t j = 0; j < C.getColumns(); ++j) {
                 std::cout << C[i][j] << " ";
             }
             std::cout << std::endl;
@@ -304,8 +307,8 @@ int main() {
 
         matrix D = A * 2.0;
         std::cout << "A * 2.0:\n";
-        for (size_t i = 0; i < D.rows; ++i) {
-            for (size_t j = 0; j < D.columns; ++j) {
+        for (size_t i = 0; i < D.getRows(); ++i) {
+            for (size_t j = 0; j < D.getColumns(); ++j) {
                 std::cout << D[i][j] << " ";
             }
             std::cout << std::endl;
@@ -313,8 +316,8 @@ int main() {
 
         matrix E = A * B;
         std::cout << "A * B:\n";
-        for (size_t i = 0; i < E.rows; ++i) {
-            for (size_t j = 0; j < E.columns; ++j) {
+        for (size_t i = 0; i < E.getRows(); ++i) {
+            for (size_t j = 0; j < E.getColumns(); ++j) {
                 std::cout << E[i][j] << " ";
             }
             std::cout << std::endl;
@@ -322,8 +325,8 @@ int main() {
 
         matrix F = A - B;
         std::cout << "A - B:\n";
-        for (size_t i = 0; i < F.rows; ++i) {
-            for (size_t j = 0; j < F.columns; ++j) {
+        for (size_t i = 0; i < F.getRows(); ++i) {
+            for (size_t j = 0; j < F.getColumns(); ++j) {
                 std::cout << F[i][j] << " ";
             }
             std::cout << std::endl;
@@ -331,8 +334,8 @@ int main() {
 
         matrix G = A.transposed();
         std::cout << "A Transposed:\n";
-        for (size_t i = 0; i < G.rows; ++i) {
-            for (size_t j = 0; j < G.columns; ++j) {
+        for (size_t i = 0; i < G.getRows(); ++i) {
+            for (size_t j = 0; j < G.getColumns(); ++j) {
                 std::cout << G[i][j] << " ";
             }
             std::cout << std::endl;
@@ -349,8 +352,8 @@ int main() {
 
         matrix I = H.inverse_matrix();
         std::cout << "Inverse matrix H:\n";
-        for (size_t i = 0; i < I.rows; ++i) {
-            for (size_t j = 0; j < I.columns; ++j) {
+        for (size_t i = 0; i < I.getRows(); ++i) {
+            for (size_t j = 0; j < I.getColumns(); ++j) {
                 std::cout << I[i][j] << " ";
             }
             std::cout << std::endl;
@@ -382,7 +385,7 @@ int main() {
 
         //очень большая матрица, чтобы вызвать bad_alloc
         try {
-            matrix huge_matrix(10000, 10000); 
+            matrix huge_matrix(10000, 10000);
         }
         catch (const std::bad_alloc& error) {
             std::cerr << "Error bad_alloc: " << error.what() << std::endl;
@@ -394,4 +397,4 @@ int main() {
     }
 
     return 0;
-}
+} 
