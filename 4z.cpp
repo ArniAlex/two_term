@@ -11,14 +11,27 @@ class matrix {
 
 public:
     matrix(size_t r, size_t c) : rows(r), columns(c) {
-        m = new double* [rows]; //исключения
-        for (size_t i = 0; i < rows; ++i) {
-            m[i] = new double[columns];
-            for (size_t j = 0; j < columns; ++j) {
-                m[i][j] = 0.0;
+        try {
+            m = new double* [rows]; 
+            for (size_t i = 0; i < rows; ++i) {
+                m[i] = new double[columns];
+                for (size_t j = 0; j < columns; ++j) {
+                    m[i][j] = 0.0;
+                }
             }
         }
-    };
+        catch (const std::bad_alloc& e) {
+            for (size_t i = 0; i < rows; ++i) {
+                delete[] m[i];
+            }
+            delete[] m;
+            m = nullptr;
+            rows = 0;
+            columns = 0;
+
+            throw MatrixException("Failed to allocate memory for matrix.");
+        }
+    }
 
     matrix(const matrix& other) : rows(other.rows), columns(other.columns) {
         m = new double* [rows];
@@ -43,20 +56,33 @@ public:
         rows = other.rows;
         columns = other.columns;
 
-        m = new double* [rows];
-        for (size_t i = 0; i < rows; ++i) {
-            m[i] = new double[columns];
-            for (size_t j = 0; j < columns; ++j) {
-                m[i][j] = other.m[i][j];
+        try {
+            m = new double* [rows];
+            for (size_t i = 0; i < rows; ++i) {
+                m[i] = new double[columns];
+                for (size_t j = 0; j < columns; ++j) {
+                    m[i][j] = other.m[i][j];
+                }
             }
         }
+        catch (const std::bad_alloc& e) {
+            //Восстановить предыдущее состояние, освободить память
+            for (size_t i = 0; i < rows; ++i) {
+                delete[] m[i];
+            }
+            delete[] m;
+            m = nullptr;
+            rows = 0;
+            columns = 0;
+            throw MatrixException("Failed to allocate memory for matrix in assignment operator.");
 
+        }
         return *this;
     };
 
     matrix operator+(const matrix& second) const {
-        if (!(rows == second.rows && columns == second.columns)) {
-            throw std::invalid_argument("Matrices must have the same dimensions for addition.");
+        if (rows != second.rows || columns != second.columns) {  
+            throw InvalidDimensions("Matrices must have the same dimensions for addition.");
         }
         matrix result(rows, columns);
         for (size_t i = 0; i < rows; ++i) {
@@ -129,7 +155,7 @@ public:
 
     double determinant() const {
         if (rows != columns) {
-            throw std::invalid_argument("Determinant can only be calculated for square matrices.");
+            throw NonSquareMatrix("Matrix must be square to calculate the determinant.");
         }
         if (rows == 1) {
             return m[0][0];
@@ -151,11 +177,11 @@ public:
 
     matrix inverse_matrix() const {
         if (rows != columns) {
-            throw std::invalid_argument("Matrix must be square to calculate the inverse matrix.");
+            throw NonSquareMatrix("Matrix must be square to calculate the inverse matrix."); 
         }
         double det = determinant();
         if (isEqual(det, 0.0)) {
-            throw std::domain_error("The matrix has no inverse because the determinant is zero.");
+            throw SingularMatrix("The matrix has no inverse because the determinant is zero."); 
         }
 
         matrix adjugate(rows, columns);
@@ -198,15 +224,46 @@ public:
         return overload(m[row], columns); //указатель на строку
     };
 
-    size_t getRows() const { return rows; };
-    size_t getColumns() const { return columns; };
-
     ~matrix() {
         for (size_t i = 0; i < rows; ++i) {
             delete[] m[i];
         }
         delete[] m;
     };
+
+    friend std::ostream& operator<<(std::ostream& os, const matrix& mat) {
+        for (size_t i = 0; i < mat.rows; ++i) {
+            for (size_t j = 0; j < mat.columns; ++j) {
+                os << mat.m[i][j] << " "; 
+            }
+            os << std::endl;
+        }
+        return os;
+    };
+
+    //классы для исключений
+    class MatrixException : public std::exception { //базовый
+    public:
+        MatrixException(const std::string& message) : message_(message) {}
+        const char* what() const noexcept override { return message_.c_str(); }
+    private:
+        std::string message_; 
+    };
+
+    class InvalidDimensions : public MatrixException {
+    public:
+        InvalidDimensions(const std::string& message) : MatrixException(message) {}
+    };
+
+    class NonSquareMatrix : public MatrixException {
+    public:
+        NonSquareMatrix(const std::string& message) : MatrixException(message) {}
+    };
+
+    class SingularMatrix : public MatrixException {
+    public:
+        SingularMatrix(const std::string& message) : MatrixException(message) {}
+    }; 
 
 private:
     //метод Гаусса (приведение к верхнетреугольному виду)
@@ -268,133 +325,91 @@ private:
 int main() {
     try {
         matrix A(3, 3);
+        matrix B(3, 3);
+        matrix C(2, 2);
+        matrix D(2, 3);
+
         A[0][0] = 1.0; A[0][1] = 2.0; A[0][2] = 8.0;
         A[1][0] = 3.0; A[1][1] = 4.0; A[0][2] = 67.0;
         A[2][0] = 8.0; A[2][1] = 12.0; A[2][2] = 3.0;
-       
 
-        matrix B(3, 3);
         B[0][0] = 5.0; B[0][1] = 6.0; B[0][2] = 4.0;
         B[1][0] = 7.0; B[1][1] = 8.0; B[1][2] = 12.0;
         B[2][0] = 74.0; B[2][1] = 7.0; B[2][2] = 5.0;
-        
 
-        std::cout << "Matrix A:\n";
-        for (size_t i = 0; i < A.getRows(); ++i) {
-            for (size_t j = 0; j < A.getColumns(); ++j) {
-                std::cout << A[i][j] << " ";
-            }
-            std::cout << std::endl;
-        }
+        C[0][0] = 1.0; C[0][1] = 0.0; 
+        C[1][0] = -1.0; C[1][1] = 5.0; 
 
-        std::cout << "Matrix B:\n";
-        for (size_t i = 0; i < B.getRows(); ++i) {
-            for (size_t j = 0; j < B.getColumns(); ++j) {
-                std::cout << B[i][j] << " ";
-            }
-            std::cout << std::endl;
-        }
+        D[0][0] = 1.0; D[0][1] = 2.0; D[0][2] = 17.0;
+        D[1][0] = 22.0; D[1][1] = 5.0; D[1][2] = 6.0;
 
-        //операции
-        matrix C = A + B;
-        std::cout << "A + B:\n";
-        for (size_t i = 0; i < C.getRows(); ++i) {
-            for (size_t j = 0; j < C.getColumns(); ++j) {
-                std::cout << C[i][j] << " ";
-            }
-            std::cout << std::endl;
-        }
+        std::cout << "Matrix A:\n" << A << std::endl;
+        std::cout << "Matrix B:\n" << B << std::endl;
+        std::cout << "Matrix C:\n" << C << std::endl;
+        std::cout << "Matrix D:\n" << D << std::endl;
 
-        matrix D = A * 2.0;
-        std::cout << "A * 2.0:\n";
-        for (size_t i = 0; i < D.getRows(); ++i) {
-            for (size_t j = 0; j < D.getColumns(); ++j) {
-                std::cout << D[i][j] << " ";
-            }
-            std::cout << std::endl;
-        }
+        matrix Sum = A + B;
+        std::cout << "A + B:\n" << Sum << std::endl;
 
-        matrix E = A * B;
-        std::cout << "A * B:\n";
-        for (size_t i = 0; i < E.getRows(); ++i) {
-            for (size_t j = 0; j < E.getColumns(); ++j) {
-                std::cout << E[i][j] << " ";
-            }
-            std::cout << std::endl;
-        }
+        matrix Diff = A - B;
+        std::cout << "A - B:\n" << Diff << std::endl;
 
-        matrix F = A - B;
-        std::cout << "A - B:\n";
-        for (size_t i = 0; i < F.getRows(); ++i) {
-            for (size_t j = 0; j < F.getColumns(); ++j) {
-                std::cout << F[i][j] << " ";
-            }
-            std::cout << std::endl;
-        }
+        double scalar = 2.5;
+        matrix ScalarMult1 = A * scalar;
+        std::cout << "A * " << scalar << ":\n" << ScalarMult1 << std::endl;
 
-        matrix G = A.transposed();
-        std::cout << "A Transposed:\n";
-        for (size_t i = 0; i < G.getRows(); ++i) {
-            for (size_t j = 0; j < G.getColumns(); ++j) {
-                std::cout << G[i][j] << " ";
-            }
-            std::cout << std::endl;
-        }
+        matrix ScalarMult2 = scalar * A;
+        std::cout << scalar << " * A:\n" << ScalarMult2 << std::endl;
 
-        //определитель и обратная матрица
-        matrix H(3, 3);
-        H[0][0] = 1.0; H[0][1] = 2.0; H[0][2] = 1.0;
-        H[1][0] = 0.0; H[1][1] = 1.0; H[1][2] = 0.0;
-        H[2][0] = 2.0; H[2][1] = 3.0; H[2][2] = 4.0;
+        matrix MatrixMult = A * B;
+        std::cout << "A * B:\n" << MatrixMult << std::endl;
 
-        double det = H.determinant();
-        std::cout << "Determinant H: " << det << std::endl;
+        matrix TransposedA = A.transposed();
+        std::cout << "A Transposed:\n" << TransposedA << std::endl;
 
-        matrix I = H.inverse_matrix();
-        std::cout << "Inverse matrix H:\n";
-        for (size_t i = 0; i < I.getRows(); ++i) {
-            for (size_t j = 0; j < I.getColumns(); ++j) {
-                std::cout << I[i][j] << " ";
-            }
-            std::cout << std::endl;
-        }
+        double detC = C.determinant();
+        std::cout << "Determinant of C: " << detC << std::endl;
 
-        //исключения
+        matrix InverseC = C.inverse_matrix();
+        std::cout << "Inverse of C:\n" << InverseC << std::endl;
+
         try {
-            matrix invalid_matrix(2, 3);
-            matrix result = A + invalid_matrix; //матрицы разных размеров
+            matrix InvalidSum = A + D;
         }
-        catch (const std::invalid_argument& error) {
-            std::cerr << "Error: " << error.what() << std::endl;
-        }
-        catch (const std::bad_alloc& error) {
-            std::cerr << "Error bad_alloc: " << error.what() << std::endl;
+        catch (const matrix::InvalidDimensions& e) {
+            std::cerr << "Exception caught: " << e.what() << std::endl;
         }
 
         try {
-            matrix nonsquare_matrix(2, 3);
-            double det = nonsquare_matrix.determinant(); //определитель неквадратной матрицы
+            matrix NonsquareInverse = D.inverse_matrix();
         }
-        catch (const std::invalid_argument& error) {
-            std::cerr << "Error: " << error.what() << std::endl;
-        }
-        catch (const std::bad_alloc& error) {
-            std::cerr << "Error bad_alloc: " << error.what() << std::endl;
+        catch (const matrix::NonSquareMatrix& e) {
+            std::cerr << "Exception caught: " << e.what() << std::endl;
         }
 
+        matrix Singular(2, 2);
+        Singular[0][0] = 1.0;
+        Singular[0][1] = 1.0;
+        Singular[1][0] = 1.0;
+        Singular[1][1] = 1.0;
 
-        //очень большая матрица, чтобы вызвать bad_alloc
         try {
-            matrix huge_matrix(10000, 10000);
+            matrix InverseSingular = Singular.inverse_matrix();
         }
-        catch (const std::bad_alloc& error) {
-            std::cerr << "Error bad_alloc: " << error.what() << std::endl;
+        catch (const matrix::SingularMatrix& e) {
+            std::cerr << "Exception caught: " << e.what() << std::endl;
+        }
+
+        try {
+            matrix Huge(100000, 100000);
+        }
+        catch (const matrix::MatrixException& e) {
+            std::cerr << "Exception caught: " << e.what() << std::endl;
         }
 
     }
     catch (const std::exception& e) {
-        std::cerr << "Error: " << e.what() << std::endl;
+        std::cerr << "Unexpected exception: " << e.what() << std::endl;
     }
-
     return 0;
 } 
