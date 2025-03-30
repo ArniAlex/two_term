@@ -11,6 +11,9 @@ public:
 
     logical_values_array(unsigned int val = 0) : _value(val) {};
 
+    logical_values_array(const logical_values_array& other) = default;
+    logical_values_array& operator=(const logical_values_array& other) = default;
+
     //методы всякие
 
     // Логические операции
