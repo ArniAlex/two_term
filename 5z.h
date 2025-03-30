@@ -1,6 +1,7 @@
 ﻿#ifndef 5Z_H 
 #define 5Z_H 
 class priority_queue {
+public:
 	virtual void add_line(const char* str, int key) = 0; 
 	virtual char* search_value() const = 0;
 	virtual void delete_value() = 0;
