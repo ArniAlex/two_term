@@ -4,6 +4,14 @@
 #include <algorithm> //std::swap
 #include <new>      // Для std::bad_alloc
 
+struct my_pair { 
+    double first;
+    size_t second; 
+
+    my_pair(double f = 0.0, size_t s = 0) : first(f), second(s) {};
+};
+
+
 class matrix {
     double** m;
     size_t rows;
@@ -12,7 +20,7 @@ class matrix {
 public:
     matrix(size_t r, size_t c) : rows(r), columns(c) {
         try {
-            m = new double* [rows]; 
+            m = new double* [rows];
             for (size_t i = 0; i < rows; ++i) {
                 m[i] = new double[columns];
                 for (size_t j = 0; j < columns; ++j) {
@@ -81,7 +89,7 @@ public:
     };
 
     matrix operator+(const matrix& second) const {
-        if (rows != second.rows || columns != second.columns) {  
+        if (rows != second.rows || columns != second.columns) {
             throw InvalidDimensions("Matrices must have the same dimensions for addition.");
         }
         matrix result(rows, columns);
@@ -177,11 +185,11 @@ public:
 
     matrix inverse_matrix() const {
         if (rows != columns) {
-            throw NonSquareMatrix("Matrix must be square to calculate the inverse matrix."); 
+            throw NonSquareMatrix("Matrix must be square to calculate the inverse matrix.");
         }
         double det = determinant();
         if (isEqual(det, 0.0)) {
-            throw SingularMatrix("The matrix has no inverse because the determinant is zero."); 
+            throw SingularMatrix("The matrix has no inverse because the determinant is zero.");
         }
 
         matrix adjugate(rows, columns);
@@ -192,7 +200,6 @@ public:
                 adjugate.m[i][j] = std::pow(-1, i + j) * submatrix.determinant();
             }
         }
-
         matrix inverse = adjugate.transposed() * (1.0 / det);
         return inverse;
     };
@@ -234,7 +241,7 @@ public:
     friend std::ostream& operator<<(std::ostream& os, const matrix& mat) {
         for (size_t i = 0; i < mat.rows; ++i) {
             for (size_t j = 0; j < mat.columns; ++j) {
-                os << mat.m[i][j] << " "; 
+                os << mat.m[i][j] << " ";
             }
             os << std::endl;
         }
@@ -247,7 +254,7 @@ public:
         MatrixException(const std::string& message) : message_(message) {}
         const char* what() const noexcept override { return message_.c_str(); }
     private:
-        std::string message_; 
+        std::string message_;
     };
 
     class InvalidDimensions : public MatrixException {
@@ -263,11 +270,11 @@ public:
     class SingularMatrix : public MatrixException {
     public:
         SingularMatrix(const std::string& message) : MatrixException(message) {}
-    }; 
+    };
 
 private:
     //метод Гаусса (приведение к верхнетреугольному виду)
-    std::pair<double, size_t> gaussianElimination(matrix& a) const {
+    my_pair gaussianElimination(matrix& a) const {
         size_t n = a.rows;
         double det = 1.0;
         size_t sign = 1; //меняется, когда меняем строки местами
@@ -285,8 +292,8 @@ private:
                 sign *= -1;
             }
 
-            if (a.m[i][i] == 0.0) {
-                return std::make_pair(0.0, sign);
+            if (isEqual(a.m[i][i], 0.0)) {
+                return my_pair(0.0, sign); //либо выбросить исключение, т.к матрица вырождена
             }
 
             for (size_t k = i + 1; k < n; ++k) {
@@ -300,7 +307,7 @@ private:
             det *= a.m[i][i];
         }
 
-        return std::make_pair(det, sign);
+        return my_pair(det, sign);
     };
 
     void getSubmatrix(size_t row_rem, size_t col_rem, matrix& submatrix) const {
@@ -330,15 +337,15 @@ int main() {
         matrix D(2, 3);
 
         A[0][0] = 1.0; A[0][1] = 2.0; A[0][2] = 8.0;
-        A[1][0] = 3.0; A[1][1] = 4.0; A[0][2] = 67.0;
+        A[1][0] = 3.0; A[1][1] = 4.0; A[1][2] = 67.0;
         A[2][0] = 8.0; A[2][1] = 12.0; A[2][2] = 3.0;
 
         B[0][0] = 5.0; B[0][1] = 6.0; B[0][2] = 4.0;
         B[1][0] = 7.0; B[1][1] = 8.0; B[1][2] = 12.0;
         B[2][0] = 74.0; B[2][1] = 7.0; B[2][2] = 5.0;
 
-        C[0][0] = 1.0; C[0][1] = 0.0; 
-        C[1][0] = -1.0; C[1][1] = 5.0; 
+        C[0][0] = 1.0; C[0][1] = 0.0;
+        C[1][0] = -1.0; C[1][1] = 5.0;
 
         D[0][0] = 1.0; D[0][1] = 2.0; D[0][2] = 17.0;
         D[1][0] = 22.0; D[1][1] = 5.0; D[1][2] = 6.0;
@@ -401,7 +408,7 @@ int main() {
         }
 
         try {
-            matrix Huge(100000, 100000);
+            matrix Huge(10000, 10000);
         }
         catch (const matrix::MatrixException& e) {
             std::cerr << "Exception caught: " << e.what() << std::endl;
@@ -412,4 +419,4 @@ int main() {
         std::cerr << "Unexpected exception: " << e.what() << std::endl;
     }
     return 0;
-} 
+}
