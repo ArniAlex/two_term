@@ -1,340 +1,250 @@
 #include <iostream>
 #include <stdexcept>
-#include <cmath>    //std::abs
-#include <algorithm> //std::swap
-#include <new>      // Для std::bad_alloc
+#include <cmath>
+#include <utility>  // std::move
 
-struct my_pair { 
-    double first;
-    size_t second; 
-
-    my_pair(double f = 0.0, size_t s = 0) : first(f), second(s) {};
-};
-
-
-class matrix {
-    double** m;
-    size_t rows;
-    size_t columns;
-
+class Matrix {
 public:
-    matrix(size_t r, size_t c) : rows(r), columns(c) {
-        try {
-            m = new double* [rows];
-            for (size_t i = 0; i < rows; ++i) {
-                m[i] = new double[columns];
-                for (size_t j = 0; j < columns; ++j) {
-                    m[i][j] = 0.0;
-                }
-            }
-        }
-        catch (const std::bad_alloc& e) {
-            for (size_t i = 0; i < rows; ++i) {
-                delete[] m[i];
-            }
-            delete[] m;
-            m = nullptr;
-            rows = 0;
-            columns = 0;
-
-            throw MatrixException("Failed to allocate memory for matrix.");
-        }
-    }
-
-    matrix(const matrix& other) : rows(other.rows), columns(other.columns) {
-        m = new double* [rows];
-        for (size_t i = 0; i < rows; ++i) {
-            m[i] = new double[columns];
-            for (size_t j = 0; j < columns; ++j) {
-                m[i][j] = other.m[i][j];
-            }
-        }
-    }
-
-    matrix& operator=(const matrix& other) {
-        if (this == &other) {
-            return *this;
-        }
-
-        for (size_t i = 0; i < rows; ++i) {
-            delete[] m[i];
-        }
-        delete[] m;
-
-        rows = other.rows;
-        columns = other.columns;
-
-        try {
-            m = new double* [rows];
-            for (size_t i = 0; i < rows; ++i) {
-                m[i] = new double[columns];
-                for (size_t j = 0; j < columns; ++j) {
-                    m[i][j] = other.m[i][j];
-                }
-            }
-        }
-        catch (const std::bad_alloc& e) {
-            //Восстановить предыдущее состояние, освободить память
-            for (size_t i = 0; i < rows; ++i) {
-                delete[] m[i];
-            }
-            delete[] m;
-            m = nullptr;
-            rows = 0;
-            columns = 0;
-            throw MatrixException("Failed to allocate memory for matrix in assignment operator.");
-
-        }
-        return *this;
-    };
-
-    matrix operator+(const matrix& second) const {
-        if (rows != second.rows || columns != second.columns) {
-            throw InvalidDimensions("Matrices must have the same dimensions for addition.");
-        }
-        matrix result(rows, columns);
-        for (size_t i = 0; i < rows; ++i) {
-            for (size_t j = 0; j < columns; ++j) {
-                result.m[i][j] = m[i][j] + second.m[i][j];
-            }
-        }
-        return result;
-    };
-
-    matrix operator*(double num) const {
-        matrix result(rows, columns);
-        for (size_t i = 0; i < rows; ++i) {
-            for (size_t j = 0; j < columns; ++j) {
-                result.m[i][j] = m[i][j] * num;
-            }
-        }
-        return result;
-    };
-
-    friend matrix operator*(double num, const matrix& matr) {
-        matrix result(matr.rows, matr.columns);
-        for (size_t i = 0; i < matr.rows; ++i) {
-            for (size_t j = 0; j < matr.columns; ++j) {
-                result.m[i][j] = matr.m[i][j] * num;
-            }
-        }
-        return result;
-    };
-
-    matrix operator*(const matrix& second) const {
-        if (columns != second.rows) {
-            throw std::invalid_argument("Incompatible matrix dimensions for multiplication.");
-        }
-
-        matrix result(rows, second.columns);
-        for (size_t i = 0; i < rows; ++i) {
-            for (size_t j = 0; j < second.columns; ++j) {
-                for (size_t k = 0; k < columns; ++k) {
-                    result.m[i][j] += m[i][k] * second.m[k][j];
-                }
-            }
-        }
-
-        return result;
-    };
-
-    matrix operator-(const matrix& second) const {
-        if (!(rows == second.rows && columns == second.columns)) {
-            throw std::invalid_argument("Matrices must have the same dimensions for subtraction.");
-        }
-        matrix result(rows, columns);
-        for (size_t i = 0; i < rows; ++i) {
-            for (size_t j = 0; j < columns; ++j) {
-                result.m[i][j] = m[i][j] - second.m[i][j];
-            }
-        }
-        return result;
-    };
-
-    matrix transposed() const {
-        matrix result(columns, rows);
-        for (size_t i = 0; i < rows; ++i) {
-            for (size_t j = 0; j < columns; ++j) {
-                result.m[j][i] = m[i][j];
-            }
-        }
-        return result;
-    };
-
-    double determinant() const {
-        if (rows != columns) {
-            throw NonSquareMatrix("Matrix must be square to calculate the determinant.");
-        }
-        if (rows == 1) {
-            return m[0][0];
-        }
-        if (rows == 2) {
-            return m[0][0] * m[1][1] - m[0][1] * m[1][0];
-        }
-
-        double det = 0;
-        matrix submatrix(rows - 1, columns - 1);
-        for (size_t i = 0; i < columns; ++i) {
-            getSubmatrix(0, i, submatrix);
-            det += m[0][i] * std::pow(-1, i) * submatrix.determinant();
-        }
-
-        return det;
-    };
-
-
-    matrix inverse_matrix() const {
-        if (rows != columns) {
-            throw NonSquareMatrix("Matrix must be square to calculate the inverse matrix.");
-        }
-        double det = determinant();
-        if (isEqual(det, 0.0)) {
-            throw SingularMatrix("The matrix has no inverse because the determinant is zero.");
-        }
-
-        matrix adjugate(rows, columns);
-        matrix submatrix(rows - 1, columns - 1);
-        for (size_t i = 0; i < rows; ++i) {
-            for (size_t j = 0; j < columns; ++j) {
-                getSubmatrix(i, j, submatrix);
-                adjugate.m[i][j] = std::pow(-1, i + j) * submatrix.determinant();
-            }
-        }
-        matrix inverse = adjugate.transposed() * (1.0 / det);
-        return inverse;
-    };
-
-
-    //для [][]
-    class overload {
-        double* str;
-        size_t col;
-    public:
-        overload(double* r, size_t c) : str(r), col(c) {};
-
-        double& operator[](size_t cols) {
-            if (cols < 0 || cols >= col) {
-                throw std::out_of_range("Index out of range");
-            }
-            return str[cols];
-        }
-
-        overload(const overload& other) = default;
-        overload& operator=(const overload& other) = default;
-        ~overload() = default;
-    };
-
-    overload operator[](size_t row) {
-        if (row < 0 || row >= rows) {
-            throw std::out_of_range("Index out of range");
-        }
-        return overload(m[row], columns); //указатель на строку
-    };
-
-    ~matrix() {
-        for (size_t i = 0; i < rows; ++i) {
-            delete[] m[i];
-        }
-        delete[] m;
-    };
-
-    friend std::ostream& operator<<(std::ostream& os, const matrix& mat) {
-        for (size_t i = 0; i < mat.rows; ++i) {
-            for (size_t j = 0; j < mat.columns; ++j) {
-                os << mat.m[i][j] << " ";
-            }
-            os << std::endl;
-        }
-        return os;
-    };
-
-    //классы для исключений
-    class MatrixException : public std::exception { //базовый
-    public:
-        MatrixException(const std::string& message) : message_(message) {}
-        const char* what() const noexcept override { return message_.c_str(); }
+    class MatrixException : public std::exception {
     private:
-        std::string message_;
-    };
-
-    class InvalidDimensions : public MatrixException {
+        std::string message;
     public:
-        InvalidDimensions(const std::string& message) : MatrixException(message) {}
-    };
-
-    class NonSquareMatrix : public MatrixException {
-    public:
-        NonSquareMatrix(const std::string& message) : MatrixException(message) {}
-    };
-
-    class SingularMatrix : public MatrixException {
-    public:
-        SingularMatrix(const std::string& message) : MatrixException(message) {}
+        explicit MatrixException(const std::string& msg) : message(msg) {}
+        const char* what() const noexcept {
+            return message.c_str();
+        }
     };
 
 private:
-    //метод Гаусса (приведение к верхнетреугольному виду)
-    my_pair gaussianElimination(matrix& a) const {
-        size_t n = a.rows;
-        double det = 1.0;
-        size_t sign = 1; //меняется, когда меняем строки местами
+    size_t rows, cols;
+    double** data;
 
-        for (size_t i = 0; i < n; ++i) {
-            size_t max_row = i;
-            for (size_t k = i + 1; k < n; ++k) {
-                if (std::abs(a.m[k][i]) > std::abs(a.m[max_row][i])) {
-                    max_row = k;
-                }
-            }
-
-            if (max_row != i) {
-                std::swap(a.m[i], a.m[max_row]);
-                sign *= -1;
-            }
-
-            if (isEqual(a.m[i][i], 0.0)) {
-                return my_pair(0.0, sign); //либо выбросить исключение, т.к матрица вырождена
-            }
-
-            for (size_t k = i + 1; k < n; ++k) {
-                double factor = a.m[k][i] / a.m[i][i];
-                for (size_t j = i; j < n; ++j) {
-                    a.m[k][j] -= factor * a.m[i][j];
-                }
-            }
-        }
-        for (size_t i = 0; i < n; ++i) {
-            det *= a.m[i][i];
-        }
-
-        return my_pair(det, sign);
-    };
-
-    void getSubmatrix(size_t row_rem, size_t col_rem, matrix& submatrix) const {
-        size_t subRow = 0;
+    void allocateMemory() {
+        data = new double* [rows];
         for (size_t i = 0; i < rows; ++i) {
-            if (i == row_rem) continue;
-            size_t subCol = 0;
-            for (size_t j = 0; j < columns; ++j) {
-                if (j == col_rem) continue;
-                submatrix.m[subRow][subCol] = m[i][j];
-                ++subCol;
-            }
-            ++subRow;
+            data[i] = new double[cols] {0};
+        }
+    }
+
+    void freeMemory() {
+        if (data) {
+            for (size_t i = 0; i < rows; ++i) delete[] data[i];
+            delete[] data;
+        }
+        data = nullptr;
+    }
+
+    bool isEqual(double a, double b, double eps = 1e-6) const {
+        return std::fabs(a - b) < eps;
+    }
+
+    void copyData(const Matrix& other) {
+        for (size_t i = 0; i < rows; ++i)
+            for (size_t j = 0; j < cols; ++j)
+                data[i][j] = other.data[i][j];
+    }
+
+public:
+    // Конструктор
+    Matrix(size_t r, size_t c) : rows(r), cols(c), data(nullptr) {
+        allocateMemory();
+    }
+
+    // Деструктор
+    ~Matrix() {
+        freeMemory();
+    }
+
+    // Конструктор копирования
+    Matrix(const Matrix& other) : rows(other.rows), cols(other.cols), data(nullptr) {
+        allocateMemory();
+        copyData(other);
+    }
+
+    // Оператор присваивания
+    Matrix& operator=(const Matrix& other) {
+        if (this != &other) {
+            freeMemory();
+            rows = other.rows;
+            cols = other.cols;
+            allocateMemory();
+            copyData(other);
+        }
+        return *this;
+    }
+
+
+
+    // Доступ к элементу с проверкой границ
+    double& at(size_t i, size_t j) {
+        if (i >= rows || j >= cols)
+            throw MatrixException("Index out of bounds");
+        return data[i][j];
+    }
+
+    // Перегрузка ()
+    double& operator()(size_t i, size_t j) { return at(i, j); }
+
+    // Перегрузка []
+    class RowProxy {
+    private:
+        double* row;
+        size_t cols;
+    public:
+        RowProxy(double* row_ptr, size_t c) : row(row_ptr), cols(c) {}
+        double& operator[](size_t j) {
+            if (j >= cols) throw std::out_of_range("Column index out of bounds");
+            return row[j];
         }
     };
 
-    bool isEqual(double a, double b, double epsilon = 1e-9) const {
-        return std::abs(a - b) < epsilon;
-    };
+    RowProxy operator[](size_t i) {
+        if (i >= rows) throw std::out_of_range("Row index out of bounds");
+        return RowProxy(data[i], cols);
+    }
+
+    // Оператор вывода
+    friend std::ostream& operator<<(std::ostream& os, const Matrix& m) {
+        for (size_t i = 0; i < m.rows; ++i) {
+            for (size_t j = 0; j < m.cols; ++j)
+                os << m.data[i][j] << " ";
+            os << '\n';
+        }
+        return os;
+    }
+
+
+
+    // Операции над матрицами
+    Matrix operator+(Matrix& other) const {
+        if (rows != other.rows || cols != other.cols)
+            throw MatrixException("Dimension mismatch for addition");
+        Matrix result(rows, cols);
+        for (size_t i = 0; i < rows; ++i)
+            for (size_t j = 0; j < cols; ++j)
+                result(i, j) = data[i][j] + other(i, j);
+        return result;
+    }
+
+    Matrix operator-(Matrix& other) const {
+        if (rows != other.rows || cols != other.cols)
+            throw MatrixException("Dimension mismatch for subtraction");
+        Matrix result(rows, cols);
+        for (size_t i = 0; i < rows; ++i)
+            for (size_t j = 0; j < cols; ++j)
+                result(i, j) = data[i][j] - other(i, j);
+        return result;
+    }
+
+    Matrix operator*(Matrix& other) const {
+        if (cols != other.rows) 
+            throw MatrixException("Dimension mismatch for multiplication");
+        Matrix result(rows, other.cols); // кол-во столбцов первой == кол-во строк второй
+        for (size_t i = 0; i < rows; ++i)
+            for (size_t j = 0; j < other.cols; ++j)
+                for (size_t k = 0; k < cols; ++k)
+                    result(i, j) += data[i][k] * other(k, j);
+        return result;
+    }
+
+    Matrix operator*(double scalar) const {
+        Matrix result(rows, cols);
+        for (size_t i = 0; i < rows; ++i)
+            for (size_t j = 0; j < cols; ++j)
+                result(i, j) = data[i][j] * scalar;
+        return result;
+    }
+
+    // Умножение числа на матрицу
+    friend Matrix operator*(double scalar, const Matrix& m) {
+        return m * scalar;
+    }
+
+    // Транспонирование
+    Matrix transposed() const {
+        Matrix result(cols, rows);
+        for (size_t i = 0; i < rows; ++i)
+            for (size_t j = 0; j < cols; ++j)
+                result(j, i) = data[i][j];
+        return result;
+    }
+
+    // Определитель методом Гаусса
+    double determinant(double epsilon = 1e-6) const {
+        if (rows != cols) // только для квадратных 
+            throw MatrixException("Determinant only for square matrices");
+
+        Matrix temp(*this);
+        double det = 1.0;
+
+        for (size_t i = 0; i < rows; ++i) {
+            size_t cur = i; // ненулевой ведущий эл
+            while (cur < rows && isEqual(temp(cur, i), 0.0, epsilon)) ++cur;
+
+            if (cur == rows) return 0.0;
+
+            if (cur != i) {
+                std::swap(temp.data[i], temp.data[cur]); 
+                det = -det;
+            }
+
+            det *= temp(i, i); // обнуляем элементы ниже текущего
+            for (size_t j = i + 1; j < rows; ++j) {
+                double factor = temp(j, i) / temp(i, i);
+                for (size_t k = i; k < cols; ++k)
+                    temp(j, k) -= factor * temp(i, k);
+            }
+        }
+
+        return det;
+    }
+
+    // Обратная матрица
+    Matrix inverse_matrix(double epsilon = 1e-6) const {
+        if (rows != cols)
+            throw MatrixException("Only square matrix can be inverted");
+
+        size_t n = rows;
+        Matrix result(n, n);
+        Matrix temp(*this);
+
+        // Единичная матрица
+        for (size_t i = 0; i < n; ++i)
+            result(i, i) = 1.0;
+
+        for (size_t i = 0; i < n; ++i) {
+            double cur = temp(i, i); 
+            if (isEqual(cur, 0.0, epsilon)) 
+                throw MatrixException("Matrix is singular");
+
+            for (size_t j = 0; j < n; ++j) { // нормализация строки...
+                temp(i, j) /= cur;
+                result(i, j) /= cur;
+            }
+
+            for (size_t k = 0; k < n; ++k) {
+                if (k != i) {
+                    double factor = temp(k, i);
+                    for (size_t j = 0; j < n; ++j) {
+                        temp(k, j) -= factor * temp(i, j);
+                        result(k, j) -= factor * result(i, j);
+                    }
+                }
+            }
+        }
+
+        return result;
+    }
 };
+
+
 
 int main() {
     try {
-        matrix A(3, 3);
-        matrix B(3, 3);
-        matrix C(2, 2);
-        matrix D(2, 3);
+        Matrix A(3, 3);
+        Matrix B(3, 3);
+        Matrix C(2, 2);
+        Matrix D(2, 3);
 
         A[0][0] = 1.0; A[0][1] = 2.0; A[0][2] = 8.0;
         A[1][0] = 3.0; A[1][1] = 4.0; A[1][2] = 67.0;
@@ -355,68 +265,75 @@ int main() {
         std::cout << "Matrix C:\n" << C << std::endl;
         std::cout << "Matrix D:\n" << D << std::endl;
 
-        matrix Sum = A + B;
-        std::cout << "A + B:\n" << Sum << std::endl;
+        Matrix sum = A + B;
+        std::cout << "A + B:\n" << sum << std::endl;
 
-        matrix Diff = A - B;
-        std::cout << "A - B:\n" << Diff << std::endl;
+        Matrix diff = A - B;
+        std::cout << "A - B:\n" << diff << std::endl;
 
         double scalar = 2.5;
-        matrix ScalarMult1 = A * scalar;
-        std::cout << "A * " << scalar << ":\n" << ScalarMult1 << std::endl;
+        Matrix scalarMult1 = A * scalar;
+        std::cout << "A * " << scalar << ":\n" << scalarMult1 << std::endl;
 
-        matrix ScalarMult2 = scalar * A;
-        std::cout << scalar << " * A:\n" << ScalarMult2 << std::endl;
+        Matrix scalarMult2 = scalar * A;
+        std::cout << scalar << " * A:\n" << scalarMult2 << std::endl;
 
-        matrix MatrixMult = A * B;
-        std::cout << "A * B:\n" << MatrixMult << std::endl;
+        Matrix matrixMult = A * B;
+        std::cout << "A * B:\n" << matrixMult << std::endl;
 
-        matrix TransposedA = A.transposed();
-        std::cout << "A Transposed:\n" << TransposedA << std::endl;
+        Matrix transposedA = A.transposed();
+        std::cout << "A Transposed:\n" << transposedA << std::endl;
 
         double detC = C.determinant();
         std::cout << "Determinant of C: " << detC << std::endl;
 
-        matrix InverseC = C.inverse_matrix();
-        std::cout << "Inverse of C:\n" << InverseC << std::endl;
+        Matrix inverseC = C.inverse_matrix();
+        std::cout << "Inverse of C:\n" << inverseC << std::endl;
+
+        // матрицы разных размеров
+        try {
+            Matrix invalidSum = A + D;
+        }
+        catch (const Matrix::MatrixException& e)
+        {
+            std::cerr << "Exception caught (InvalidDimensions): " << e.what() << std::endl;
+        }
+
+        // не квадратной матрицы
+        try {
+            Matrix nonsquareInverse = D.inverse_matrix();
+        }
+        catch (const Matrix::MatrixException& e)
+        {
+            std::cerr << "Exception caught (NonSquareMatrix): " << e.what() << std::endl;
+        }
+
+        // определитель == 0
+        Matrix singular(2, 2);
+        singular[0][0] = 1.0; singular[0][1] = 1.0;
+        singular[1][0] = 1.0; singular[1][1] = 1.0;
 
         try {
-            matrix InvalidSum = A + D;
+            Matrix invSingular = singular.inverse_matrix();
         }
-        catch (const matrix::InvalidDimensions& e) {
-            std::cerr << "Exception caught: " << e.what() << std::endl;
+        catch (const Matrix::MatrixException& e)
+        {
+            std::cerr << "Exception caught (SingularMatrix): " << e.what() << std::endl;
         }
 
+        // попытка выделения большой матрицы
         try {
-            matrix NonsquareInverse = D.inverse_matrix();
+            Matrix huge(10000, 10000);
         }
-        catch (const matrix::NonSquareMatrix& e) {
-            std::cerr << "Exception caught: " << e.what() << std::endl;
-        }
-
-        matrix Singular(2, 2);
-        Singular[0][0] = 1.0;
-        Singular[0][1] = 1.0;
-        Singular[1][0] = 1.0;
-        Singular[1][1] = 1.0;
-
-        try {
-            matrix InverseSingular = Singular.inverse_matrix();
-        }
-        catch (const matrix::SingularMatrix& e) {
-            std::cerr << "Exception caught: " << e.what() << std::endl;
-        }
-
-        try {
-            matrix Huge(10000, 10000);
-        }
-        catch (const matrix::MatrixException& e) {
-            std::cerr << "Exception caught: " << e.what() << std::endl;
+        catch (const std::bad_alloc& e) {
+            std::cerr << "Memory allocation failed: " << e.what() << std::endl;
         }
 
     }
     catch (const std::exception& e) {
         std::cerr << "Unexpected exception: " << e.what() << std::endl;
     }
+
     return 0;
 }
+
