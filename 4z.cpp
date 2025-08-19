@@ -3,7 +3,7 @@
 #include <cmath>
 #include <utility>  // std::move
 
-class Matrix {
+class Matrix final {
 public:
     class MatrixException : public std::exception {
     private:
@@ -21,8 +21,18 @@ private:
 
     void allocateMemory() {
         data = new double* [rows];
-        for (size_t i = 0; i < rows; ++i) {
-            data[i] = new double[cols] {0};
+        if (!data) throw MatrixException("Memory allocation failed"); 
+        try {
+            for (size_t i = 0; i < rows; ++i) {
+                data[i] = new double[cols] {0};
+                if (!data[i]) throw MatrixException("Memory allocation failed"); 
+            }
+        }
+        catch (const MatrixException&) {
+            for (size_t i = 0; i < rows; ++i) delete[] data[i];  
+            delete[] data;
+            data = nullptr;
+            throw; 
         }
     }
 
@@ -39,9 +49,16 @@ private:
     }
 
     void copyData(const Matrix& other) {
-        for (size_t i = 0; i < rows; ++i)
-            for (size_t j = 0; j < cols; ++j)
-                data[i][j] = other.data[i][j];
+        if (other.data) { 
+            for (size_t i = 0; i < rows; ++i)
+                for (size_t j = 0; j < cols; ++j)
+                    data[i][j] = other.data[i][j];
+        }
+        else {
+            for (size_t i = 0; i < rows; ++i)// заполнение матрицы нулями
+                for (size_t j = 0; j < cols; ++j)
+                    data[i][j] = 0.0;
+        }
     }
 
 public:
@@ -76,7 +93,7 @@ public:
 
 
     // Доступ к элементу с проверкой границ
-    double& at(size_t i, size_t j) {
+    double& at(size_t i, size_t j) const {
         if (i >= rows || j >= cols)
             throw MatrixException("Index out of bounds");
         return data[i][j];
