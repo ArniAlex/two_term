@@ -1,5 +1,6 @@
  //алгоритмо RC4 - символ открытого (незашифрованного) текста будет зашифрован в зависимости от ключа и положения символа в открытом тексте.
 #include <iostream>
+#include <fstream>  // Для работы с файлами
 #include <cstdio>  
 #include <stdexcept>  // для исключений
 #include <cstring>   // для memcpy
@@ -9,13 +10,15 @@
 class encoder final {
     unsigned char* key;
     size_t key_s;
+
+    unsigned char* allocateKey(size_t size);
 public:
     encoder(unsigned char const*, size_t); //инициализация
     encoder(const encoder& other); 
     encoder& operator=(const encoder&);
     void mutator(unsigned char*, size_t); //проверка валидности данных(ключа) при его изменении
     void encode(char const*, char const*) const; //шифрование/дешифрование
-    ~encoder() noexcept; //освобождает память
+    ~encoder() noexcept;
 };
 
 int main() {
@@ -34,75 +37,68 @@ int main() {
     return 0;
 }
 
-encoder::encoder(const unsigned char* _key, size_t _key_s) {
-    if (_key == nullptr || _key_s == 0) {
-        throw std::invalid_argument("Key cannot be null or empty.");
-    }
-    key_s = _key_s;
+unsigned char* encoder::allocateKey(size_t size) { // Для выделения памяти и обработки bad_alloc
     try {
-        key = new unsigned char[key_s];
-        memcpy(key, _key, key_s);
+        return new unsigned char[size];
     }
     catch (const std::bad_alloc&) {
         throw std::runtime_error("Failed to allocate memory for key.");
     }
 }
 
-encoder::encoder(const encoder& other): key_s(other.key_s) {
-    try {
-        key = new unsigned char[key_s];
-        memcpy(key, other.key, key_s);
+encoder::encoder(const unsigned char* _key, size_t _key_s): key(nullptr), key_s(_key_s) {
+    if (_key == nullptr || _key_s == 0) {
+        throw std::invalid_argument("Key cannot be null or empty.");
     }
-    catch (const std::bad_alloc&) {
-        throw std::runtime_error("Failed to allocate memory in copy constructor.");
-    }
+    key = allocateKey(key_s); 
+    memcpy(key, _key, key_s);
 }
+
+encoder::encoder(const encoder& other): key(nullptr), key_s(other.key_s) { 
+    key = allocateKey(key_s); 
+    memcpy(key, other.key, key_s);
+}
+
 
 encoder& encoder::operator=(const encoder& other) {
     if (this == &other) {
         return *this;
     }
-    try {
-        unsigned char* new_key = new unsigned char[other.key_s];  
-        memcpy(new_key, other.key, other.key_s);
 
-        delete[] key;  
-        key = new_key;
-        key_s = other.key_s;
-    }
-    catch (const std::bad_alloc&) {
-        throw std::runtime_error("Failed to allocate memory in assignment operator.");
-    }
+    unsigned char* new_key = allocateKey(other.key_s);
+    memcpy(new_key, other.key, other.key_s);
+
+    delete[] key;
+    key = new_key;
+    key_s = other.key_s;
     return *this;
 }
+
 void encoder::mutator(unsigned char* _key, size_t _key_s) {
     if (_key == nullptr || _key_s == 0) {
         throw std::invalid_argument("Key cannot be null or empty."); 
     }
-    try {
-        unsigned char* new_key = new unsigned char[_key_s];  
+    unsigned char* new_key = allocateKey(_key_s);
+    memcpy(new_key, _key, _key_s);
 
-        memcpy(new_key, _key, _key_s);
-
-        delete[] key;   
-        key = new_key;
-        key_s = _key_s;
-    }
-    catch (const std::bad_alloc&) {
-        throw std::runtime_error("Failed to allocate memory in mutator.");
-    }
+    delete[] key;
+    key = new_key;  
+    key_s = _key_s;  
 }
 
 void encoder::encode(char const* input_f, char const* output_f) const{
-    FILE* inputFile = fopen(input_f, "rb");
+    // std::ostream std::ofstream
+  
+    std::ifstream inputFile(input_f, std::ios::binary);
 
-    if (!inputFile) {
+    if (!inputFile.is_open()) {
         throw std::runtime_error("Failed to open input file.");
     }
-    FILE* outputFile = fopen(output_f, "wb");
 
-    if (!outputFile) {
-        fclose(inputFile); 
+    std::ofstream outputFile(output_f, std::ios::binary);
+
+    if (!outputFile.is_open()) {
+        inputFile.close();
         throw std::runtime_error("Failed to open output file.");
     }
 
@@ -121,18 +117,18 @@ void encoder::encode(char const* input_f, char const* output_f) const{
     int i = 0;
     j = 0;
     unsigned char byte;
-    while (fread(&byte, 1, 1, inputFile) == 1) {
+    while (inputFile.read(reinterpret_cast<char*>(&byte), 1)) {
         i = (i + 1) % 256;
         j = (j + S[i]) % 256;
         std::swap(S[i], S[j]);
         unsigned char key_stream = S[(S[i] + S[j]) % 256];
         unsigned char result = byte ^ key_stream;
 
-        fwrite(&result, 1, 1, outputFile);
+        outputFile.write(reinterpret_cast<char*>(&result), 1); 
     }
 
-    fclose(inputFile);
-    fclose(outputFile);
+    inputFile.close();
+    outputFile.close();
 }
 
 encoder::~encoder() noexcept {
