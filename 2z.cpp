@@ -1,9 +1,9 @@
-﻿#include <iostream>
+#include <iostream>
 #include <string>
 #pragma warning (disable: 4996) 
 
 
-class logical_values_array {
+class logical_values_array final{
     unsigned int _value;
 
 public:
@@ -11,23 +11,20 @@ public:
 
     logical_values_array(unsigned int val = 0) : _value(val) {};
 
-    logical_values_array(const logical_values_array& other) = default;
-    logical_values_array& operator=(const logical_values_array& other) = default;
-
     //методы всякие
 
     // Логические операции
     logical_values_array invert() const { return logical_values_array(~_value); }; // Инверсия 
     logical_values_array conjunction(const logical_values_array& second_obj) const { return logical_values_array(_value & second_obj._value); };  // Конъюнкция
     logical_values_array disjunction(const logical_values_array& second_obj) const { return logical_values_array(_value | second_obj._value); };  // Дизъюнкция 
-    logical_values_array implication(const logical_values_array& second_obj) const { return logical_values_array(~_value | second_obj._value); };  // Импликация
-    logical_values_array coimplication(const logical_values_array& second_obj) const { return logical_values_array(_value | ~second_obj._value); };  // Коимпликация
+    logical_values_array implication(const logical_values_array& second_obj) const { return invert().disjunction(second_obj); };  // Импликация
+    logical_values_array coimplication(const logical_values_array& second_obj) const { return disjunction(second_obj.invert()); };  // Коимпликация
     logical_values_array xor_op(const logical_values_array& second_obj) const { return logical_values_array(_value ^ second_obj._value); };  // Сложение по модулю 2
-    logical_values_array equivalence(const logical_values_array& second_obj) const { return logical_values_array(~(_value ^ second_obj._value)); }; // Эквивалентность
-    logical_values_array peirce_arrow(const logical_values_array& second_obj) const { return logical_values_array(~(_value | second_obj._value)); };  // Стрелка Пирса NOR
-    logical_values_array sheffer_stroke(const logical_values_array& second_obj) const { return logical_values_array(~(_value & second_obj._value)); };  // Штрих Шеффера NAND
+    logical_values_array equivalence(const logical_values_array& second_obj) const { return xor_op(second_obj).invert(); }; // Эквивалентность
+    logical_values_array peirce_arrow(const logical_values_array& second_obj) const { return xor_op(second_obj).invert(); };  // Стрелка Пирса NOR
+    logical_values_array sheffer_stroke(const logical_values_array& second_obj) const { return conjunction(second_obj).invert(); };  // Штрих Шеффера NAND 
 
-    static bool equals(const logical_values_array& obj1, const logical_values_array& obj2) { return obj1._value == obj2._value; };
+    static bool equals(const logical_values_array& obj1, const logical_values_array& obj2)  { return obj1._value == obj2._value; };
 
     bool get_bit(size_t position) const { return _value & (1 << position); };
 
