@@ -163,7 +163,6 @@ public:
         delete[] heap;
     }
 
-    // Реализация интерфейса priority_queue
     void add_value(const char* str, int priority) override {
         if (!str) throw "Null pointer";
         if (std::strlen(str) == 0) throw "Empty string";
@@ -220,7 +219,6 @@ public:
         return *this;
     }
 
-    // Дополнительные методы с [[nodiscard]]
     [[nodiscard]] bool is_empty() const {
         return current_size == 0;
     }
@@ -268,15 +266,11 @@ public:
     }
 };
 
-// Демонстрация работы
 int main() {
     try {
-        std::cout << "=== TESTING BINARY PRIORITY QUEUE ===\n";
-
         std::cout << "Creating q1...\n";
         binary_priority_queue q1(5);
 
-        // Тестирование [[nodiscard]] методов
         std::cout << "Queue 1 capacity: " << q1.get_max_size() << "\n";
         std::cout << "Queue 1 is empty: " << (q1.is_empty() ? "true" : "false") << "\n";
 
@@ -289,12 +283,8 @@ int main() {
         std::cout << "Queue 1 is full: " << (q1.is_full() ? "true" : "false") << "\n";
         std::cout << "Queue 1:\n" << q1 << "\n";
 
-        // [[nodiscard]] предотвращает неиспользование возвращаемого значения
-        const char* max_value = q1.search_value(); // Должно использоваться
+        const char* max_value = q1.search_value(); 
         std::cout << "Max value: " << max_value << "\n";
-
-        // Если раскомментировать, будет предупреждение:
-        // q1.search_value(); // [[nodiscard]] предупредит, что значение не используется
 
         std::cout << "Creating q2...\n";
         binary_priority_queue q2(3);
@@ -318,13 +308,9 @@ int main() {
         std::cout << "Queue 4:\n" << q4 << "\n";
 
         std::cout << "Testing meld ([[nodiscard]] метод)...\n";
-        // [[nodiscard]] гарантирует, что результат meld будет использован
-        binary_priority_queue q5 = q1.meld(q2); // Результат используется
+        binary_priority_queue q5 = q1.meld(q2); 
         std::cout << "Queue 5 size after meld: " << q5.get_current_size() << "\n";
         std::cout << "Queue 5:\n" << q5 << "\n";
-
-        // Если раскомментировать, будет предупреждение:
-        // q1.meld(q2); // [[nodiscard]] предупредит, что результат не используется
 
         std::cout << "Testing merge...\n";
         binary_priority_queue q6(10);
@@ -338,13 +324,11 @@ int main() {
         std::cout << "Queue 1 size after delete: " << q1.get_current_size() << "\n";
         std::cout << "Queue 1:\n" << q1 << "\n";
 
-        // Тестирование через интерфейс
         std::cout << "Testing through interface...\n";
         priority_queue* interface_ptr = &q2;
-        const char* interface_max = interface_ptr->search_value(); // [[nodiscard]] из интерфейса
+        const char* interface_max = interface_ptr->search_value(); 
         std::cout << "Max via interface: " << interface_max << "\n";
 
-        std::cout << "=== ALL TESTS PASSED ===\n";
     }
     catch (const char* msg) {
         std::cerr << "Error: " << msg << "\n";
@@ -353,3 +337,4 @@ int main() {
 
     return 0;
 }
+
